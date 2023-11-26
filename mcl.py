@@ -3,39 +3,8 @@ import numpy as np
 import sys
 from matplotlib import pyplot as plt
 import networkx as nx
-
-# f = open('congress_network_data.json')
-# data = json.load(f)
-
-# inList = data[0]['inList']
-# inWeight = data[0]['inWeight']
-# outList = data[0]['outList']
-# outWeight = data[0]['outWeight']
-# usernameList = data[0]['usernameList']
-
-
-def parseGraph(filename):
-
-	"""
-	Returns a numpy array of the graph
-	"""
-	
-	file = open(filename)
-
-	graph = []
-	for line in file:
-
-		# Remove the first character, whitespace, 
-		# and split numbers into an array
-		line = line.split('\t')
-		line = line[1].split(',')
-		
-		# Convert string array into ints
-		line = [int(x) for x in line]
-
-		graph.append(np.array(line))
-
-	return np.array(graph)
+from sklearn.metrics.cluster import normalized_mutual_info_score
+from sklearn.cluster import SpectralClustering
 
 def pagerank(graph, df=0.85, eps=1e-5):
 
@@ -59,8 +28,8 @@ def pagerank(graph, df=0.85, eps=1e-5):
 		R_next = (1 - df) / N + df * np.matmul(S, R)
 
 		# Check for covergence by taking the sums of the magnitude
-        # of R_next - R and seeing if it is less than epsilon.
-        # If it is less than epsilon, we terminate the loop early
+		# of R_next - R and seeing if it is less than epsilon.
+		# If it is less than epsilon, we terminate the loop early
 		diff = R_next - R
 
 		# Take the sum of the magnitude of the difference
@@ -90,9 +59,12 @@ def pagerank(graph, df=0.85, eps=1e-5):
 			print(str(ranking[i]) +" ("+ str(score) +")")
 
 
-def create_undirected_graph(in_list, out_list):
+def create_undirected_graph(in_list, out_list, username_list, party_list):
 
 	G = nx.Graph()
+
+	for i in range(len(username_list)):
+		G.add_node(i, username=username_list[i], party=party_list[i])
 
 	for i in range(len(in_list)):
 		for j in range(len(in_list[i])):
@@ -109,30 +81,34 @@ def create_undirected_graph(in_list, out_list):
 
 
 def markov_clustering(adjacency_matrix, inflation=2, iterations=100):
-    # Normalize the adjacency matrix to create a transition matrix
-    transition_matrix = adjacency_matrix / adjacency_matrix.sum(axis=0, keepdims=True)
-    
-    for _ in range(iterations):
 
-        # Expansion Step
-        expanded_matrix = np.linalg.matrix_power(transition_matrix, 2)
-        
-        # Inflation Step
-        inflated_matrix = np.power(expanded_matrix, inflation)
-        
-        # Normalization Step
-        sum_columns = np.sum(inflated_matrix, axis=0, keepdims=True)
-        transition_matrix = inflated_matrix / sum_columns
-        
-    # Identify clusters based on rows or columns of the final matrix
-    clusters = np.argmax(transition_matrix, axis=0)
+	# Normalize the adjacency matrix to create a transition matrix
+	transition_matrix = adjacency_matrix / adjacency_matrix.sum(axis=0, keepdims=True)
 
-	cluster_list = []
+	for i in range(iterations):
 
-	for
-    
-    return clusters
+		# Expansion Step
+		expanded_matrix = np.linalg.matrix_power(transition_matrix, 2)
+		
+		# Inflation Step
+		inflated_matrix = np.power(expanded_matrix, inflation)
+		
+		# Normalization Step
+		sum_columns = np.sum(inflated_matrix, axis=0, keepdims=True)
+		transition_matrix = inflated_matrix / sum_columns
 
+	# Identify clusters based on rows or columns of the final matrix
+	clusters = np.argmax(transition_matrix, axis=0)
+
+	# Change the unqiue values of the final transition matrix to integers starting from 0
+	cluster_labels = np.unique(clusters)
+
+	for i in range(len(cluster_labels)):
+		for j in range(len(clusters)):
+			if clusters[j] == cluster_labels[i]:
+				clusters[j] = i
+	
+	return clusters
 
 f = open('congress_network_data.json')
 data = json.load(f)
@@ -142,21 +118,41 @@ in_weight = data[0]['inWeight']
 out_list = data[0]['outList']
 out_weight = data[0]['outWeight']
 username_list = data[0]['usernameList']
+party_list = data[0]['partyList']
 
 
-G = create_undirected_graph(in_list, out_list)
-G = nx.to_numpy_array(G)
+labels_true = np.array(party_list)
+for i in range(len(labels_true)):
+	if labels_true[i] == 'D':
+		labels_true[i] = 1
+	elif labels_true[i] == 'R':
+		labels_true[i] = 0
 
-clusters = markov_clustering(G)
-
-print(clusters)
+labels_true = np.array(labels_true, dtype=int)
 
 
-# print(type(inList))
 
-# print(len(inList))
-# print(len(outList))
 
+# for i in range(len(username_list)):
+# 	print(username_list[i])#, "("+party_list[i]+")")
+
+
+G = create_undirected_graph(in_list, out_list, username_list, party_list)
+G = nx.to_numpy_array(G, dtype=int)
+
+sc = SpectralClustering(n_clusters=2, affinity='precomputed', n_init=100, assign_labels='discretize')
+sc_labels_pred = sc.fit_predict(G)  
+print(sc_labels_pred)
+sc_nmi = normalized_mutual_info_score(sc_labels_pred, labels_true)
+
+mcl_labels_pred = markov_clustering(G, inflation=1.75)
+print("Number of MCL Clusters:", len(np.unique(mcl_labels_pred)))
+mcl_nmi = normalized_mutual_info_score(mcl_labels_pred, labels_true)
+
+print("NMI Scores")
+print("==========")
+print("MCL:", mcl_nmi)
+print("SC:", sc_nmi)
 
 # Create a graph from the JSON data
 #G = nx.read_weighted_edgelist('congress.edgelist', nodetype=int, create_using=nx.DiGraph)
@@ -179,7 +175,7 @@ print(clusters)
 source_node = 0
 target_node = 86
 
-print(username_list[87])
+# print(username_list[87])
 
 # Check if the edge exists in the graph
 # if G.has_edge(source_node, target_node):
