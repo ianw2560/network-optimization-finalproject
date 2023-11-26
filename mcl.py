@@ -4,6 +4,7 @@ import sys
 from matplotlib import pyplot as plt
 import networkx as nx
 from sklearn.metrics.cluster import normalized_mutual_info_score
+from sklearn.metrics.cluster import adjusted_mutual_info_score
 from sklearn.cluster import SpectralClustering
 
 def pagerank(graph, df=0.85, eps=1e-5):
@@ -110,6 +111,35 @@ def markov_clustering(adjacency_matrix, inflation=2, iterations=100):
 	
 	return clusters
 
+def get_mcl_scores(labels_true):
+
+	inflation_value = 1.6
+	increment = 0.025
+	mcl_scores = []
+
+	num_inflation_values = int((2 - inflation_value) /increment)
+
+	for i in range(num_inflation_values):
+
+		inflation_value = np.round(inflation_value + increment, 3)
+		print("Current Inflation Value:", inflation_value)
+
+		# Run MCL on the network with the current inflation value
+		mcl_labels_pred = markov_clustering(G, inflation=inflation_value)
+
+		# Get the number of clusters that MCL created
+		num_clusters = len(np.unique(mcl_labels_pred))
+
+		if num_clusters == 2:
+
+			# Run NMI and AMI on the labels predicted by MCL
+			nmi_score = normalized_mutual_info_score(mcl_labels_pred, labels_true)
+			ami_score = adjusted_mutual_info_score(mcl_labels_pred, labels_true)
+
+			mcl_scores.append( (inflation_value, np.round(nmi_score, 5), np.round(ami_score, 5)) )
+
+	return mcl_scores
+
 f = open('congress_network_data.json')
 data = json.load(f)
 
@@ -121,6 +151,7 @@ username_list = data[0]['usernameList']
 party_list = data[0]['partyList']
 
 
+# Get true labels for political party affiliations
 labels_true = np.array(party_list)
 for i in range(len(labels_true)):
 	if labels_true[i] == 'D':
@@ -130,29 +161,30 @@ for i in range(len(labels_true)):
 
 labels_true = np.array(labels_true, dtype=int)
 
-
-
-
-# for i in range(len(username_list)):
-# 	print(username_list[i])#, "("+party_list[i]+")")
-
-
+# Create graph for MCL and SC
 G = create_undirected_graph(in_list, out_list, username_list, party_list)
 G = nx.to_numpy_array(G, dtype=int)
 
 sc = SpectralClustering(n_clusters=2, affinity='precomputed', n_init=100, assign_labels='discretize')
 sc_labels_pred = sc.fit_predict(G)  
-print(sc_labels_pred)
-sc_nmi = normalized_mutual_info_score(sc_labels_pred, labels_true)
 
-mcl_labels_pred = markov_clustering(G, inflation=1.75)
-print("Number of MCL Clusters:", len(np.unique(mcl_labels_pred)))
-mcl_nmi = normalized_mutual_info_score(mcl_labels_pred, labels_true)
+sc_nmi = np.round( normalized_mutual_info_score(sc_labels_pred, labels_true) , 5)
+sc_ami = np.round( adjusted_mutual_info_score(sc_labels_pred, labels_true) , 5)
 
-print("NMI Scores")
+mcl_scores = get_mcl_scores(labels_true)
+print(mcl_scores)
+
+print("MCL Scores")
 print("==========")
-print("MCL:", mcl_nmi)
-print("SC:", sc_nmi)
+
+for score in mcl_scores:
+	print("[Inflation =", str(score[0]), "]\tNMI:", str(score[1]), "AMI:", str(score[2]))
+
+print("Spectral Clustering Scores")
+print("==========================")
+print("NMI:", sc_nmi)
+print("AMI:", sc_ami)
+
 
 # Create a graph from the JSON data
 #G = nx.read_weighted_edgelist('congress.edgelist', nodetype=int, create_using=nx.DiGraph)
@@ -172,8 +204,8 @@ print("SC:", sc_nmi)
 ##################
 
 # Get the weight of a specific edge
-source_node = 0
-target_node = 86
+# source_node = 0
+# target_node = 86
 
 # print(username_list[87])
 
