@@ -17,13 +17,10 @@ def create_undirected_graph(in_list, out_list, username_list, party_list):
 
 	for i in range(len(in_list)):
 		for j in range(len(in_list[i])):
-			#print("adding edge", str(in_list[i][j]), str(i))
 			G.add_edge(i, in_list[i][j])
 			
-
 	for i in range(len(out_list)):
 		for j in range(len(out_list[i])):
-			#print("adding edge", str(i), str(in_list[i][j]))
 			G.add_edge(i, out_list[i][j])
 
 	return G
@@ -61,11 +58,12 @@ def markov_clustering(adjacency_matrix, inflation=2, iterations=100):
 
 def get_mcl_scores(labels_true):
 
-	inflation_value = 1.6
+	inflation_value = 1.7
 	increment = 0.025
+
 	mcl_scores = []
 
-	num_inflation_values = int((2 - inflation_value) /increment)
+	num_inflation_values = int((2 - inflation_value) / increment)
 
 	for i in range(num_inflation_values):
 
@@ -88,6 +86,41 @@ def get_mcl_scores(labels_true):
 			mcl_scores.append( (inflation_value, np.round(nmi_score, 5), np.round(ami_score, 5), np.round(ari_score, 5)) )
 
 	return mcl_scores
+
+def get_sc_scores(labels_true):
+
+	# Get predicted labels from SC using 'cluster_qr' assign labels strategy
+	sc_cluster_qr = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
+	sc_labels_pred_cqr = sc_cluster_qr.fit_predict(G)
+
+	# Get predicted labels from SC using 'discretize' assign labels strategy
+	sc_discretize = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='discretize')
+	sc_labels_pred_discretize = sc_discretize.fit_predict(G)
+
+	cluster_qr_scores = []
+	discretize_scores = []
+
+	# Evaluate SC with cluster_qr
+	sc_nmi = np.round( normalized_mutual_info_score(sc_labels_pred_cqr, labels_true) , 5)
+	sc_ami = np.round( adjusted_mutual_info_score(sc_labels_pred_cqr, labels_true) , 5)
+	sc_ari = np.round( adjusted_rand_score(sc_labels_pred_cqr, labels_true) , 5)
+
+	cluster_qr_scores.append(sc_nmi)
+	cluster_qr_scores.append(sc_ami)
+	cluster_qr_scores.append(sc_ari)
+	cluster_qr_scores = np.array(cluster_qr_scores)
+
+	# Evaluate SC with discretize
+	sc_nmi = np.round( normalized_mutual_info_score(sc_labels_pred_discretize, labels_true) , 5)
+	sc_ami = np.round( adjusted_mutual_info_score(sc_labels_pred_discretize, labels_true) , 5)
+	sc_ari = np.round( adjusted_rand_score(sc_labels_pred_discretize, labels_true) , 5)
+
+	discretize_scores.append(sc_nmi)
+	discretize_scores.append(sc_ami)
+	discretize_scores.append(sc_ari)
+	discretize_scores = np.array(discretize_scores)
+
+	return cluster_qr_scores, discretize_scores
 
 f = open('congress_network_data.json')
 data = json.load(f)
@@ -114,15 +147,16 @@ labels_true = np.array(labels_true, dtype=int)
 G = create_undirected_graph(in_list, out_list, username_list, party_list)
 G = nx.to_numpy_array(G, dtype=int)
 
-sc = SpectralClustering(n_clusters=2, affinity='precomputed', n_init=100, assign_labels='discretize')
-sc_labels_pred = sc.fit_predict(G)  
-
-sc_nmi = np.round( normalized_mutual_info_score(sc_labels_pred, labels_true) , 5)
-sc_ami = np.round( adjusted_mutual_info_score(sc_labels_pred, labels_true) , 5)
-sc_ari = np.round( adjusted_rand_score(sc_labels_pred, labels_true) , 5)
+#=================================================
+# Calculate Scores
+#=================================================
 
 mcl_scores = get_mcl_scores(labels_true)
-print(mcl_scores)
+sc_cluster_qr_scores, sc_discretize_scores = get_sc_scores(labels_true)
+
+#=================================================
+# Print Scores
+#=================================================
 
 print("MCL Scores")
 print("==========")
@@ -132,9 +166,62 @@ for score in mcl_scores:
 
 print("Spectral Clustering Scores")
 print("==========================")
-print("NMI:", sc_nmi)
-print("AMI:", sc_ami)
-print("ARI:", sc_ari)
+print("[discretize] NMI:", sc_discretize_scores[0], "AMI:",  sc_discretize_scores[1], "ARI:",  sc_discretize_scores[2])
+print("[cluster_qr] NMI:", sc_cluster_qr_scores[0], "AMI:",  sc_cluster_qr_scores[1], "ARI:",  sc_cluster_qr_scores[2])
+
+#=================================================
+# Create MCL Result Plots
+#=================================================
+
+# Get MCL scores
+inflation_values = []
+nmi_scores = []
+ami_scores = []
+ari_scores = []
+
+for score in mcl_scores:
+	inflation_values.append(score[0])
+	nmi_scores.append(score[1])
+	ami_scores.append(score[2])
+	ari_scores.append(score[3])
+
+# Create the plot
+plt.figure(figsize=(6, 4))
+plt.plot(inflation_values, nmi_scores, label='NMI', linestyle='-', marker='o')
+plt.plot(inflation_values, ami_scores, label='AMI', linestyle='--', marker='s')
+plt.plot(inflation_values, ari_scores, label='ARI', linestyle='-', marker='^')
+
+# Set labels and title
+plt.xlabel('Inflation Value')
+plt.ylabel('Score')
+plt.title('MCL Scores')
+
+plt.xlim(1.7, 2.0)
+plt.ylim(0.6, 1)
+plt.legend()
+
+plt.grid(True)
+plt.savefig('results/mcl_scores.png')
+
+#=================================================
+# Create Spectral Clustering Result Plot
+#=================================================
+
+assign_labels_strategies = ['cluster_qr', 'discretize']
+
+plt.figure(figsize=(6, 4))
+plt.plot(assign_labels_strategies, [sc_cluster_qr_scores[0], sc_discretize_scores[0]], label='NMI', linestyle='-', marker='o')
+plt.plot(assign_labels_strategies, [sc_cluster_qr_scores[1], sc_discretize_scores[1]], label='AMI', linestyle='--', marker='s')
+plt.plot(assign_labels_strategies, [sc_cluster_qr_scores[2], sc_discretize_scores[2]], label='ARI', linestyle='-', marker='^')
+
+# Set labels and title
+plt.xlabel('Assign Labels Strategy')
+plt.ylabel('Score')
+plt.title('Spectral Clustering Scores')
+
+plt.ylim(0.6, 0.85)
+plt.legend()
+plt.savefig('results/spectral_clustering_scores.png')
 
 
 # Create a graph from the JSON data
