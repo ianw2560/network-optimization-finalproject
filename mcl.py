@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 import networkx as nx
 from sklearn.metrics.cluster import normalized_mutual_info_score
 from sklearn.metrics.cluster import adjusted_mutual_info_score
+from sklearn.metrics.cluster import adjusted_rand_score
 from sklearn.cluster import SpectralClustering
 
 def pagerank(graph, df=0.85, eps=1e-5):
@@ -135,8 +136,9 @@ def get_mcl_scores(labels_true):
 			# Run NMI and AMI on the labels predicted by MCL
 			nmi_score = normalized_mutual_info_score(mcl_labels_pred, labels_true)
 			ami_score = adjusted_mutual_info_score(mcl_labels_pred, labels_true)
+			ari_score = adjusted_rand_score(mcl_labels_pred, labels_true)
 
-			mcl_scores.append( (inflation_value, np.round(nmi_score, 5), np.round(ami_score, 5)) )
+			mcl_scores.append( (inflation_value, np.round(nmi_score, 5), np.round(ami_score, 5), np.round(ari_score, 5)) )
 
 	return mcl_scores
 
@@ -170,6 +172,7 @@ sc_labels_pred = sc.fit_predict(G)
 
 sc_nmi = np.round( normalized_mutual_info_score(sc_labels_pred, labels_true) , 5)
 sc_ami = np.round( adjusted_mutual_info_score(sc_labels_pred, labels_true) , 5)
+sc_ari = np.round( adjusted_rand_score(sc_labels_pred, labels_true) , 5)
 
 mcl_scores = get_mcl_scores(labels_true)
 print(mcl_scores)
@@ -178,12 +181,13 @@ print("MCL Scores")
 print("==========")
 
 for score in mcl_scores:
-	print("[Inflation =", str(score[0]), "]\tNMI:", str(score[1]), "AMI:", str(score[2]))
+	print("[Inflation =", str(score[0]), "]\tNMI:", str(score[1]), "AMI:", str(score[2]), "ARI:", str(score[3]))
 
 print("Spectral Clustering Scores")
 print("==========================")
 print("NMI:", sc_nmi)
 print("AMI:", sc_ami)
+print("ARI:", sc_ari)
 
 
 # Create a graph from the JSON data
