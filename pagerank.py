@@ -4,6 +4,33 @@ import sys
 from matplotlib import pyplot as plt
 import networkx as nx
 
+def create_graph(in_list, in_weight, out_list, out_weight, username_list, party_list):
+
+	G = nx.DiGraph()
+
+	for i in range(len(username_list)):
+		G.add_node(i, username=username_list[i], party=party_list[i])
+
+	for i in range(len(in_list)):
+		for j in range(len(in_list[i])):
+			G.add_edge(i, in_list[i][j])
+			
+			
+	for i in range(len(out_list)):
+		for j in range(len(out_list[i])):
+			G.add_edge(i, out_list[i][j])
+
+
+	for i in range(len(in_weight)):
+		for j in range(len(in_weight[i])):
+			nx.set_edge_attributes(G, {(i, j) : {"weight": in_weight[i][j] } })
+
+	for i in range(len(out_weight)):
+		for j in range(len(out_weight[i])):
+			nx.set_edge_attributes(G, {(i, j) : {"weight": out_weight[i][j] } })
+
+	return G
+
 def pagerank(graph, df=0.85, eps=1e-5):
 
 	# Specify the number of iterations
@@ -77,14 +104,58 @@ for i in range(len(labels_true)):
 
 labels_true = np.array(labels_true, dtype=int)
 
-# Create graph for MCL and SC
-G = create_undirected_graph(in_list, out_list, username_list, party_list)
-G = nx.to_numpy_array(G, dtype=int)
-
-
 # Create a graph from the JSON data
-#G = nx.read_weighted_edgelist('congress.edgelist', nodetype=int, create_using=nx.DiGraph)
+G = nx.read_weighted_edgelist('congress.edgelist', nodetype=float, create_using=nx.DiGraph)
 
+# G = create_graph(in_list, in_weight, out_list, out_weight, username_list, party_list)
+
+# Add username attributes to all nodes and set isLeader to 0
+for i in range(len(G.nodes)):
+	usernames = {i: {"username": username_list[i]}}
+	isleader = {i: {"isLeader": 0}}
+	nx.set_node_attributes(G, usernames)
+	nx.set_node_attributes(G, isleader)
+
+
+# The node IDs of top ten House/Senate leadership positions
+leadersAll = [367, 71, 254, 322, 48, 25, 160, 80, 399]
+
+# The node IDs of top House/Senate leadership positions
+leadersTop = [367, 71, 254, 322]
+
+
+# Set the nodes in leadersAll to 1
+for i in range(len(leadersAll)):
+	isLeader = { leadersAll[i] : {"isLeader": 1} }
+	nx.set_node_attributes(G, isLeader)
+
+# print(G.get_edge_data(0, 4)['weight'])
+
+graph = nx.to_numpy_array(G)
+
+print(graph.shape)
+print(graph)
+# print(graph[0:4][0])
+# print(graph[0][3])
+print(graph[0][76])
+print(graph[4][0])
+# print(graph[334][473])
+
+rankings = pagerank(graph)
+
+
+
+# print(G.nodes[0]["isLeader"])
+# print(G.nodes[1]["isLeader"])
+
+# print(G.nodes[0]["username"])
+
+# for node in G.nodes:
+# 	print(str(node) + ": " + G.nodes[node]["username"])
+# print(G)
+
+# for i in range(len(G.nodes)):
+# 	print(G.nodes[i]["username"])
 ##################
 # Draw graph
 # pos = nx.spring_layout(G)  # You can use different layout algorithms
