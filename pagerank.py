@@ -3,35 +3,31 @@ import numpy as np
 import sys
 from matplotlib import pyplot as plt
 import networkx as nx
+import pandas as pd
+from scipy.stats import chi2_contingency
 
 def create_graph(in_list, in_weight, out_list, out_weight, username_list, party_list):
 
 	G = nx.DiGraph()
 
 	for i in range(len(username_list)):
+		#print("Adding", username_list[i], "node id:", i)
 		G.add_node(i, username=username_list[i], party=party_list[i])
 
 	for i in range(len(in_list)):
 		for j in range(len(in_list[i])):
-			G.add_edge(i, in_list[i][j])
+			#print("Edge", in_list[i][j], i, "weight:", in_weight[i][j])
+			G.add_edge(in_list[i][j], i, weight=in_weight[i][j])
 			
 			
 	for i in range(len(out_list)):
 		for j in range(len(out_list[i])):
-			G.add_edge(i, out_list[i][j])
-
-
-	for i in range(len(in_weight)):
-		for j in range(len(in_weight[i])):
-			nx.set_edge_attributes(G, {(i, j) : {"weight": in_weight[i][j] } })
-
-	for i in range(len(out_weight)):
-		for j in range(len(out_weight[i])):
-			nx.set_edge_attributes(G, {(i, j) : {"weight": out_weight[i][j] } })
+			#print("Edge", i, out_list[i][j], "weight:", out_weight[i][j])
+			G.add_edge(i, out_list[i][j], weight=out_weight[i][j])
 
 	return G
 
-def pagerank(graph, df=0.85, eps=1e-5):
+def pagerank(graph, username_list, df=0.85, eps=1e-6):
 
 	# Specify the number of iterations
 	num_iterations = 100
@@ -70,19 +66,142 @@ def pagerank(graph, df=0.85, eps=1e-5):
 	# Sort nodes by PageRank score (highest to lowest)
 	ranking = np.argsort(R)[::-1]
 
+	scores = []
 	# Print the results
-	print("ranking:", end=" ")
+	# print("ranking:", end=" ")
 	for i in range(len(ranking)):
 
 		# Round the scores to 6 decimal places
-		score = np.round(R[ranking[i]], 6)
+		scores.append( np.round(R[ranking[i]], 6) )
+		
 
-		# Print the rankings in the requested format
-		if i < len(ranking) - 1:
-			print(str(ranking[i]) +" ("+ str(score) +"), ", end="")
-		else:
-			print(str(ranking[i]) +" ("+ str(score) +")")
+	scores = np.array(scores)
+	# 	# Print the rankings in the requested format
+	# 	print("Rank",i,":", username_list[ranking[i]], str(ranking[i]) +" ("+ str(score) +")")
 
+	return ranking, scores
+
+def subgroup_comparison(subgroup, G):
+
+	# Set isLeader to 0
+	for i in range(len(G.nodes)):
+		isleader = {i: {"isLeader": 0}}
+		nx.set_node_attributes(G, isleader)
+
+	# Set the nodes in leadersAll to 1
+	for i in range(len(subgroup)):
+		isLeader = { subgroup[i] : {"isLeader": 1} }
+		nx.set_node_attributes(G, isLeader)
+
+	graph = nx.to_numpy_array(G)
+
+	rankings, scores = pagerank(graph, username_list)
+
+	isLeader = []
+	for i in range(len(G.nodes)):
+		l = nx.get_node_attributes(G, "isLeader")
+		isLeader.append(l[rankings[i]])
+
+	# Create a Pandas DataFrame
+	df = pd.DataFrame({'PageRank_Rank': np.arange(1, len(rankings) + 1), 'Node': rankings, 'isLeader': isLeader, "Score": scores})
+	df.set_index('Node', inplace=True)
+
+	#==================================
+	# Create a contingency table
+	#==================================
+
+	# Discretize the ranks into four quartiles
+	rank_percentiles = pd.qcut(df['PageRank_Rank'], q=10)
+	contingency_table = pd.crosstab(df['isLeader'], rank_percentiles)
+
+	# Perform the Chi-Square test
+	res = chi2_contingency(contingency_table)
+
+	# Display the results
+	print("Chi-Square Value:", res.statistic)
+	print("P-value:", res.pvalue)
+
+	# Interpret the results
+	alpha = 0.05
+	if res.pvalue < alpha:
+		print("There is a significant association between being a leader and having a higher PageRank rank.")
+	else:
+		print("There is no significant association between being a leader and having a higher PageRank rank.")
+
+
+	# Get a DataFrame with only the leaders
+	leader_nodes_df = df[df['isLeader'] == 1]
+
+	print(leader_nodes_df)
+
+
+	# print("Descriptive Statistics for All Members (PageRank_Rank):")
+	# print(df['PageRank_Rank'].describe())
+	# print(df['PageRank_Rank'].median())
+
+	# # Display the descriptive statistics
+	# print("Descriptive Statistics for Leaders (PageRank_Rank):")
+	# print(leader_nodes_df['PageRank_Rank'].describe())
+	# print(leader_nodes_df['PageRank_Rank'].median())
+
+	# print("Descriptive Statistics for All Members (Scores):")
+	# print(df['Score'].describe())
+	
+
+	# cols = list(df.columns)
+	# cols.remove('PageRank_Rank')
+	# cols.remove('isLeader')
+	# df[cols]
+
+	# for col in cols:
+	# 	col_zscore = col + '_zscore'
+	# 	df[col_zscore] = (df[col] - df[col].mean())/df[col].std(ddof=0)
+
+	# # for leader in subgroup:
+	# # 	print(df.loc[[leader]]['Score_zscore'])
+	# print(df)
+	
+
+	# print("Descriptive Statistics for Leaders (Scores):")
+	# print(leader_nodes_df['Score'].describe())
+	
+
+	# for col in cols:
+	# 	col_zscore = col + '_zscore'
+	# 	df[col_zscore] = (df[col] - df[col].mean())/df[col].std(ddof=0)
+
+	# for leader in subgroup:
+	# 	print(df.loc[[leader]]['Score_zscore'])
+
+	
+
+	plot_scores(rankings, scores, subgroup)
+
+# Create a graph of members vs scores
+def plot_scores(rankings, scores, leaders):
+
+	leader_indexes = []
+	leader_scores = []
+
+	for leader in leaders:
+		leader_indexes.append(np.where(rankings==leader)[0][0])
+	
+	for index in leader_indexes:
+		leader_scores.append(scores[index])
+
+	plt.figure(figsize=(8, 6))
+
+	
+	plt.scatter(rankings, scores)
+	plt.scatter(leaders, leader_scores, c='red', label='Leaders')
+
+	plt.title('PageRank Scores of Congressional Leaders')
+	plt.ylabel('PageRank Scores')
+	plt.xlabel('Member ID')
+
+	plt.legend()
+
+	plt.savefig('results/pagerank_scores.png')
 
 f = open('congress_network_data.json')
 data = json.load(f)
@@ -106,66 +225,63 @@ labels_true = np.array(labels_true, dtype=int)
 
 # Create a graph from the JSON data
 G = nx.read_weighted_edgelist('congress.edgelist', nodetype=float, create_using=nx.DiGraph)
-
-# G = create_graph(in_list, in_weight, out_list, out_weight, username_list, party_list)
+G = create_graph(in_list, in_weight, out_list, out_weight, username_list, party_list)
 
 # Add username attributes to all nodes and set isLeader to 0
 for i in range(len(G.nodes)):
+	# print(i, username_list[i])
 	usernames = {i: {"username": username_list[i]}}
-	isleader = {i: {"isLeader": 0}}
 	nx.set_node_attributes(G, usernames)
-	nx.set_node_attributes(G, isleader)
+
 
 
 # The node IDs of top ten House/Senate leadership positions
-leadersAll = [367, 71, 254, 322, 48, 25, 160, 80, 399]
+# leaders = [367, 71, 254, 322, 48, 25, 160, 80, 399]
+
+# leadersNoGOPLeader = [367, 71, 254, 48, 25, 160, 80, 399]
 
 # The node IDs of top House/Senate leadership positions
-leadersTop = [367, 71, 254, 322]
+# leadersTop = [367, 71, 254, 322]
 
+# # The node IDs of top House/Senate leadership positions
+# leadersRepublican = [322, 80, 399]
 
-# Set the nodes in leadersAll to 1
-for i in range(len(leadersAll)):
-	isLeader = { leadersAll[i] : {"isLeader": 1} }
-	nx.set_node_attributes(G, isLeader)
+# # The node IDs of top House/Senate leadership positions
+leadersDemocrat = [367, 71, 254, 322, 48, 25, 160]
 
-# print(G.get_edge_data(0, 4)['weight'])
+subgroup_comparison(leadersDemocrat, G)
+#subgroup_comparison(leadersNoGOPLeader, G)
+# subgroup_comparison(leadersTop, G)
+# subgroup_comparison(leadersRepublican, G)
+# subgroup_comparison(leadersDemocrat, G)
 
-graph = nx.to_numpy_array(G)
+# leaderGroup = leadersTop
 
-print(graph.shape)
-print(graph)
-# print(graph[0:4][0])
-# print(graph[0][3])
-print(graph[0][76])
-print(graph[4][0])
-# print(graph[334][473])
+# # Set the nodes in leadersAll to 1
+# for i in range(len(leaderGroup)):
+# 	isLeader = { leaderGroup[i] : {"isLeader": 1} }
+# 	nx.set_node_attributes(G, isLeader)
 
-rankings = pagerank(graph)
+# graph = nx.to_numpy_array(G)
 
+# rankings, scores = pagerank(graph, username_list)
 
-
-# print(G.nodes[0]["isLeader"])
-# print(G.nodes[1]["isLeader"])
-
-# print(G.nodes[0]["username"])
-
-# for node in G.nodes:
-# 	print(str(node) + ": " + G.nodes[node]["username"])
-# print(G)
-
+# isLeader = []
 # for i in range(len(G.nodes)):
-# 	print(G.nodes[i]["username"])
-##################
-# Draw graph
-# pos = nx.spring_layout(G)  # You can use different layout algorithms
-# fig, ax = plt.subplots(figsize=(20, 20))
-# nx.draw(G, pos, with_labels=False, font_size=10, font_color='black', node_color='skyblue', edge_color='black')
+# 	l = nx.get_node_attributes(G, "isLeader")
+# 	isLeader.append(l[rankings[i]])
 
-# # Draw the node labels
-# # node_labels = {node: str(node) for node in G.nodes()}
-# # nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=, font_color='black', font_weight='bold', ax=ax)
+# # Create a Pandas DataFrame
+# df = pd.DataFrame({'PageRank_Rank': np.arange(1, len(rankings) + 1), 'Node': rankings, 'isLeader': isLeader})
+# df.set_index('Node', inplace=True)
 
-# plt.savefig("graph_image.png", dpi=500)
+# print("Descriptive Statistics for All Members:")
+# print(df['PageRank_Rank'].describe())
 
-##################
+# # Filter DataFrame for nodes where isLeader is equal to 1
+# leader_nodes_df = df[df['isLeader'] == 1]
+
+# # Display the descriptive statistics
+# print("Descriptive Statistics for Ranks of Leaders:")
+# print(leader_nodes_df['PageRank_Rank'].describe())
+
