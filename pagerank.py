@@ -127,7 +127,7 @@ def subgroup_comparison(subgroup, G):
 		print("There is a significant association between being a leader and having a higher PageRank rank.")
 	else:
 		print("There is no significant association between being a leader and having a higher PageRank rank.")
-
+	print()
 
 	# Get a DataFrame with only the leaders
 	leader_nodes_df = df[df['isLeader'] == 1]
@@ -135,36 +135,31 @@ def subgroup_comparison(subgroup, G):
 	print(leader_nodes_df)
 
 
-	# print("Descriptive Statistics for All Members (PageRank_Rank):")
-	# print(df['PageRank_Rank'].describe())
-	# print(df['PageRank_Rank'].median())
+	print("Descriptive Statistics for All Members (PageRank_Rank):")
+	print(df['PageRank_Rank'].describe())
 
-	# # Display the descriptive statistics
-	# print("Descriptive Statistics for Leaders (PageRank_Rank):")
-	# print(leader_nodes_df['PageRank_Rank'].describe())
-	# print(leader_nodes_df['PageRank_Rank'].median())
+	# Display the descriptive statistics
+	print("Descriptive Statistics for Leaders (PageRank_Rank):")
+	print(leader_nodes_df['PageRank_Rank'].describe())
 
 	# print("Descriptive Statistics for All Members (Scores):")
 	# print(df['Score'].describe())
-	
 
-	# cols = list(df.columns)
-	# cols.remove('PageRank_Rank')
-	# cols.remove('isLeader')
-	# df[cols]
+	cols = list(df.columns)
+	cols.remove('PageRank_Rank')
+	cols.remove('isLeader')
+	df[cols]
 
-	# for col in cols:
-	# 	col_zscore = col + '_zscore'
-	# 	df[col_zscore] = (df[col] - df[col].mean())/df[col].std(ddof=0)
+	for col in cols:
+		col_zscore = col + '_zscore'
+		df[col_zscore] = (df[col] - df[col].mean())/df[col].std(ddof=0)
 
-	# # for leader in subgroup:
-	# # 	print(df.loc[[leader]]['Score_zscore'])
-	# print(df)
+	for leader in subgroup:
+		print(df.loc[[leader]]['Score_zscore'])
 	
 
 	# print("Descriptive Statistics for Leaders (Scores):")
-	# print(leader_nodes_df['Score'].describe())
-	
+	# print(leader_nodes_df['Score'].describe())	
 
 	# for col in cols:
 	# 	col_zscore = col + '_zscore'
@@ -172,8 +167,6 @@ def subgroup_comparison(subgroup, G):
 
 	# for leader in subgroup:
 	# 	print(df.loc[[leader]]['Score_zscore'])
-
-	
 
 	plot_scores(rankings, scores, subgroup)
 
@@ -191,7 +184,6 @@ def plot_scores(rankings, scores, leaders):
 
 	plt.figure(figsize=(8, 6))
 
-	
 	plt.scatter(rankings, scores)
 	plt.scatter(leaders, leader_scores, c='red', label='Leaders')
 
@@ -234,54 +226,11 @@ for i in range(len(G.nodes)):
 	nx.set_node_attributes(G, usernames)
 
 
-
 # The node IDs of top ten House/Senate leadership positions
-# leaders = [367, 71, 254, 322, 48, 25, 160, 80, 399]
+leaders = [367, 71, 254, 322, 48, 25, 160, 80, 399]
 
-# leadersNoGOPLeader = [367, 71, 254, 48, 25, 160, 80, 399]
+print("Leader Usernames")
+for leader in leaders:
+	print(username_list[leader], leader)
 
-# The node IDs of top House/Senate leadership positions
-# leadersTop = [367, 71, 254, 322]
-
-# # The node IDs of top House/Senate leadership positions
-# leadersRepublican = [322, 80, 399]
-
-# # The node IDs of top House/Senate leadership positions
-leadersDemocrat = [367, 71, 254, 322, 48, 25, 160]
-
-subgroup_comparison(leadersDemocrat, G)
-#subgroup_comparison(leadersNoGOPLeader, G)
-# subgroup_comparison(leadersTop, G)
-# subgroup_comparison(leadersRepublican, G)
-# subgroup_comparison(leadersDemocrat, G)
-
-# leaderGroup = leadersTop
-
-# # Set the nodes in leadersAll to 1
-# for i in range(len(leaderGroup)):
-# 	isLeader = { leaderGroup[i] : {"isLeader": 1} }
-# 	nx.set_node_attributes(G, isLeader)
-
-# graph = nx.to_numpy_array(G)
-
-# rankings, scores = pagerank(graph, username_list)
-
-# isLeader = []
-# for i in range(len(G.nodes)):
-# 	l = nx.get_node_attributes(G, "isLeader")
-# 	isLeader.append(l[rankings[i]])
-
-# # Create a Pandas DataFrame
-# df = pd.DataFrame({'PageRank_Rank': np.arange(1, len(rankings) + 1), 'Node': rankings, 'isLeader': isLeader})
-# df.set_index('Node', inplace=True)
-
-# print("Descriptive Statistics for All Members:")
-# print(df['PageRank_Rank'].describe())
-
-# # Filter DataFrame for nodes where isLeader is equal to 1
-# leader_nodes_df = df[df['isLeader'] == 1]
-
-# # Display the descriptive statistics
-# print("Descriptive Statistics for Ranks of Leaders:")
-# print(leader_nodes_df['PageRank_Rank'].describe())
-
+subgroup_comparison(leaders, G)
