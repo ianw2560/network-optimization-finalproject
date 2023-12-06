@@ -11,18 +11,15 @@ def create_graph(in_list, in_weight, out_list, out_weight, username_list, party_
 	G = nx.DiGraph()
 
 	for i in range(len(username_list)):
-		#print("Adding", username_list[i], "node id:", i)
 		G.add_node(i, username=username_list[i], party=party_list[i])
 
 	for i in range(len(in_list)):
 		for j in range(len(in_list[i])):
-			#print("Edge", in_list[i][j], i, "weight:", in_weight[i][j])
 			G.add_edge(in_list[i][j], i, weight=in_weight[i][j])
 			
 			
 	for i in range(len(out_list)):
 		for j in range(len(out_list[i])):
-			#print("Edge", i, out_list[i][j], "weight:", out_weight[i][j])
 			G.add_edge(i, out_list[i][j], weight=out_weight[i][j])
 
 	return G
@@ -67,21 +64,17 @@ def pagerank(graph, username_list, df=0.85, eps=1e-6):
 	ranking = np.argsort(R)[::-1]
 
 	scores = []
-	# Print the results
-	# print("ranking:", end=" ")
+
 	for i in range(len(ranking)):
 
 		# Round the scores to 6 decimal places
 		scores.append( np.round(R[ranking[i]], 6) )
-		
 
 	scores = np.array(scores)
-	# 	# Print the rankings in the requested format
-	# 	print("Rank",i,":", username_list[ranking[i]], str(ranking[i]) +" ("+ str(score) +")")
 
 	return ranking, scores
 
-def subgroup_comparison(subgroup, G):
+def leader_comparison(subgroup, G, username_list):
 
 	# Set isLeader to 0
 	for i in range(len(G.nodes)):
@@ -95,7 +88,29 @@ def subgroup_comparison(subgroup, G):
 
 	graph = nx.to_numpy_array(G)
 
+	#=============================================
+	# Calculate PageRank rankings
+	#=============================================
+
+	# Calculate the PageRank scores
 	rankings, scores = pagerank(graph, username_list)
+
+	# Print the results
+	print("PageRank Rankings")
+	print("=================")
+	for i in range(len(rankings)):
+		# Print the rankings in the requested format
+		print("Rank " + str(i) + ":", username_list[rankings[i]], str(rankings[i]) +" ("+ str(scores[i]) +")")
+	print()
+
+	print("======================================")
+	print("              ANALYSIS")
+	print("======================================")
+	print()
+
+	#=============================================
+	# Create Pandas dataframe with leader category
+	#=============================================
 
 	isLeader = []
 	for i in range(len(G.nodes)):
@@ -107,7 +122,7 @@ def subgroup_comparison(subgroup, G):
 	df.set_index('Node', inplace=True)
 
 	#==================================
-	# Create a contingency table
+	# Perform chi-square test
 	#==================================
 
 	# Discretize the ranks into four quartiles
@@ -117,11 +132,13 @@ def subgroup_comparison(subgroup, G):
 	# Perform the Chi-Square test
 	res = chi2_contingency(contingency_table)
 
-	# Display the results
-	print("Chi-Square Value:", res.statistic)
+	print("Perform chi-square test")
+	print("=========================")
+
+	# Print p-value
 	print("P-value:", res.pvalue)
 
-	# Interpret the results
+	# Interpret the p-value
 	alpha = 0.05
 	if res.pvalue < alpha:
 		print("There is a significant association between being a leader and having a higher PageRank rank.")
@@ -129,21 +146,38 @@ def subgroup_comparison(subgroup, G):
 		print("There is no significant association between being a leader and having a higher PageRank rank.")
 	print()
 
+	#===================================
+	# Print the PageRanks of the leaders
+	#===================================
+
 	# Get a DataFrame with only the leaders
 	leader_nodes_df = df[df['isLeader'] == 1]
 
-	print(leader_nodes_df)
+	print("PageRanks of Leaders")
+	print("=========================")
 
+	print(leader_nodes_df)
+	print()
+
+	#===================================
+	# Print descriptive statistics
+	#===================================
 
 	print("Descriptive Statistics for All Members (PageRank_Rank):")
+	print("=======================================================")
 	print(df['PageRank_Rank'].describe())
+	print()
 
 	# Display the descriptive statistics
 	print("Descriptive Statistics for Leaders (PageRank_Rank):")
+	print("===================================================")
 	print(leader_nodes_df['PageRank_Rank'].describe())
+	print()
 
-	# print("Descriptive Statistics for All Members (Scores):")
-	# print(df['Score'].describe())
+	print("Descriptive Statistics for All Members (Scores):")
+	print("================================================")
+	print(df['Score'].describe())
+	print()
 
 	cols = list(df.columns)
 	cols.remove('PageRank_Rank')
@@ -154,20 +188,14 @@ def subgroup_comparison(subgroup, G):
 		col_zscore = col + '_zscore'
 		df[col_zscore] = (df[col] - df[col].mean())/df[col].std(ddof=0)
 
+	print("Z-Scores for PageRank Scores for Leaders")
+	print("========================================")
+	print("Node \tZ-Score")
 	for leader in subgroup:
-		print(df.loc[[leader]]['Score_zscore'])
-	
+		zscore = df.loc[leader]['Score_zscore']
+		print(leader, "\t{:.5f}".format(zscore))
 
-	# print("Descriptive Statistics for Leaders (Scores):")
-	# print(leader_nodes_df['Score'].describe())	
-
-	# for col in cols:
-	# 	col_zscore = col + '_zscore'
-	# 	df[col_zscore] = (df[col] - df[col].mean())/df[col].std(ddof=0)
-
-	# for leader in subgroup:
-	# 	print(df.loc[[leader]]['Score_zscore'])
-
+	# Plot the scores of all the nodes
 	plot_scores(rankings, scores, subgroup)
 
 # Create a graph of members vs scores
@@ -191,10 +219,12 @@ def plot_scores(rankings, scores, leaders):
 	plt.ylabel('PageRank Scores')
 	plt.xlabel('Member ID')
 
+	plt.grid(True)
 	plt.legend()
 
 	plt.savefig('results/pagerank_scores.png')
 
+# Read in network data
 f = open('congress_network_data.json')
 data = json.load(f)
 
@@ -215,7 +245,7 @@ for i in range(len(labels_true)):
 
 labels_true = np.array(labels_true, dtype=int)
 
-# Create a graph from the JSON data
+# Create a graph from the edgelist file
 G = nx.read_weighted_edgelist('congress.edgelist', nodetype=float, create_using=nx.DiGraph)
 G = create_graph(in_list, in_weight, out_list, out_weight, username_list, party_list)
 
@@ -225,7 +255,6 @@ for i in range(len(G.nodes)):
 	usernames = {i: {"username": username_list[i]}}
 	nx.set_node_attributes(G, usernames)
 
-
 # The node IDs of top ten House/Senate leadership positions
 leaders = [367, 71, 254, 322, 48, 25, 160, 80, 399]
 
@@ -233,4 +262,4 @@ print("Leader Usernames")
 for leader in leaders:
 	print(username_list[leader], leader)
 
-subgroup_comparison(leaders, G)
+leader_comparison(leaders, G, username_list)

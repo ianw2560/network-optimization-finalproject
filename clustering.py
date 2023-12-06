@@ -63,12 +63,13 @@ def get_mcl_scores(labels_true):
 
 	mcl_scores = []
 
+	# Calculate the number of inflation values to test
 	num_inflation_values = int((2 - inflation_value) / increment)
 
 	for i in range(num_inflation_values):
-
+		
+		# Increment inflation value to check
 		inflation_value = np.round(inflation_value + increment, 3)
-		print("Current Inflation Value:", inflation_value)
 
 		# Run MCL on the network with the current inflation value
 		mcl_labels_pred = markov_clustering(G, inflation=inflation_value)
@@ -76,6 +77,7 @@ def get_mcl_scores(labels_true):
 		# Get the number of clusters that MCL created
 		num_clusters = len(np.unique(mcl_labels_pred))
 
+		# We are looking for two clusters
 		if num_clusters == 2:
 
 			# Run NMI and AMI on the labels predicted by MCL
@@ -122,6 +124,7 @@ def get_sc_scores(labels_true):
 
 	return cluster_qr_scores, discretize_scores
 
+# Read in network data
 f = open('congress_network_data.json')
 data = json.load(f)
 
@@ -162,7 +165,8 @@ print("MCL Scores")
 print("==========")
 
 for score in mcl_scores:
-	print("[Inflation =", str(score[0]), "]\tNMI:", str(score[1]), "AMI:", str(score[2]), "ARI:", str(score[3]))
+	print("[Inflation = {:.3f}".format(score[0]), "] NMI:", str(score[1]), "AMI:", str(score[2]), "ARI:", str(score[3]))
+print()
 
 print("Spectral Clustering Scores")
 print("==========================")
@@ -185,7 +189,7 @@ for score in mcl_scores:
 	ami_scores.append(score[2])
 	ari_scores.append(score[3])
 
-# Create the plot
+# Configure line formatting
 plt.figure(figsize=(6, 4))
 plt.plot(inflation_values, nmi_scores, label='NMI', linestyle='-', marker='o')
 plt.plot(inflation_values, ami_scores, label='AMI', linestyle='--', marker='s')
@@ -196,6 +200,7 @@ plt.xlabel('Inflation Value')
 plt.ylabel('Score')
 plt.title('MCL Scores')
 
+# Set x/y axis limits
 plt.xlim(1.7, 2.0)
 plt.ylim(0.6, 1)
 plt.legend()
@@ -221,22 +226,6 @@ plt.title('Spectral Clustering Scores')
 
 plt.ylim(0.6, 0.85)
 plt.legend()
+plt.grid(True)
+
 plt.savefig('results/spectral_clustering_scores.png')
-
-
-# Create a graph from the JSON data
-#G = nx.read_weighted_edgelist('congress.edgelist', nodetype=int, create_using=nx.DiGraph)
-
-##################
-# Draw graph
-# pos = nx.spring_layout(G)  # You can use different layout algorithms
-# fig, ax = plt.subplots(figsize=(20, 20))
-# nx.draw(G, pos, with_labels=False, font_size=10, font_color='black', node_color='skyblue', edge_color='black')
-
-# # Draw the node labels
-# # node_labels = {node: str(node) for node in G.nodes()}
-# # nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=, font_color='black', font_weight='bold', ax=ax)
-
-# plt.savefig("graph_image.png", dpi=500)
-
-##################
