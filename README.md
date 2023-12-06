@@ -9,6 +9,7 @@ Here is a brief overview of the structure of this repository:
 - `congress.edgelist`: This is the dataset from the SNAP platform as a list of edges with weights.
 - `clustering.py`: Source code for running MCL and spectral clustering
 - `pagerank.py`:  Source code for running PageRank
+- `final_paper.pdf`: The paper for this project 
 
 ## Usage
 
