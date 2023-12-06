@@ -1,0 +1,72 @@
+Leader Usernames
+SpeakerPelosi 367
+SenSchumer 71
+LeaderHoyer 254
+GOPLeader 322
+SenatorLeahy 48
+SenatorDurbin 25
+WhipClyburn 160
+SenJohnThune 80
+SteveScalise 399
+Chi-Square Value: 12.168554600966598
+P-value: 0.2039729637500447
+There is no significant association between being a leader and having a higher PageRank rank.
+
+      PageRank_Rank  isLeader     Score
+Node                                   
+322               1         1  0.016722
+254              18         1  0.006805
+399              41         1  0.004939
+160             137         1  0.002333
+367             139         1  0.002324
+25              190         1  0.001867
+71              277         1  0.001294
+48              355         1  0.000931
+80              360         1  0.000903
+Descriptive Statistics for All Members (PageRank_Rank):
+count    475.000000
+mean     238.000000
+std      137.264951
+min        1.000000
+25%      119.500000
+50%      238.000000
+75%      356.500000
+max      475.000000
+Name: PageRank_Rank, dtype: float64
+Descriptive Statistics for Leaders (PageRank_Rank):
+count      9.000000
+mean     168.666667
+std      138.073350
+min        1.000000
+25%       41.000000
+50%      139.000000
+75%      277.000000
+max      360.000000
+Name: PageRank_Rank, dtype: float64
+Node
+367    0.112442
+Name: Score_zscore, dtype: float64
+Node
+71   -0.41703
+Name: Score_zscore, dtype: float64
+Node
+254    2.415903
+Name: Score_zscore, dtype: float64
+Node
+322    7.513743
+Name: Score_zscore, dtype: float64
+Node
+48   -0.603631
+Name: Score_zscore, dtype: float64
+Node
+25   -0.122479
+Name: Score_zscore, dtype: float64
+Node
+160    0.117068
+Name: Score_zscore, dtype: float64
+Node
+80   -0.618024
+Name: Score_zscore, dtype: float64
+Node
+399    1.456684
+Name: Score_zscore, dtype: float64
