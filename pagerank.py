@@ -258,8 +258,4 @@ for i in range(len(G.nodes)):
 # The node IDs of top ten House/Senate leadership positions
 leaders = [367, 71, 254, 322, 48, 25, 160, 80, 399]
 
-print("Leader Usernames")
-for leader in leaders:
-	print(username_list[leader], leader)
-
 leader_comparison(leaders, G, username_list)
